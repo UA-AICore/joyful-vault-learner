@@ -11,4 +11,13 @@ router.use('/activities', activitiesRoutes);
 router.use('/search', searchRoutes);
 router.use('/admin', adminRoutes);
 
+// Simple info route
+router.get('/info', (req, res) => {
+  res.json({
+    message: 'Vault Learning API is running',
+    version: '1.0.0',
+    status: 'healthy'
+  });
+});
+
 module.exports = router;

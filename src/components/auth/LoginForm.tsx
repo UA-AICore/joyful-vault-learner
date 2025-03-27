@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from './AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
 
 interface LoginFormProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const { login, register } = useAuth();
   const { toast } = useToast();
@@ -24,9 +26,14 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage(null);
     
     try {
       if (isRegister) {
+        if (!name.trim()) {
+          throw new Error("Name is required");
+        }
+        
         await register(name, email, password, role);
         toast({
           title: "Account created",
@@ -40,10 +47,31 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
         });
       }
       onClose();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Auth error:", error);
+      
+      // Format error message for display
+      let message = "Something went wrong";
+      
+      if (error.message) {
+        if (error.message.includes("Invalid login credentials")) {
+          message = "Invalid email or password";
+        } else if (error.message.includes("Email not confirmed")) {
+          message = "Please confirm your email address before logging in";
+        } else if (error.message.includes("Invalid role")) {
+          message = error.message;
+        } else if (error.message.includes("User already registered")) {
+          message = "This email is already registered";
+        } else {
+          message = error.message;
+        }
+      }
+      
+      setErrorMessage(message);
+      
       toast({
         title: "Authentication error",
-        description: error instanceof Error ? error.message : "Something went wrong",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -57,6 +85,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
     setPassword('');
     setEmail('');
     setName('');
+    setErrorMessage(null);
   };
 
   // Demo credentials
@@ -81,6 +110,12 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
               : 'Enter your credentials to access your account.'}
           </DialogDescription>
         </DialogHeader>
+
+        {errorMessage && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+            <p className="text-red-700 text-sm">{errorMessage}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="flex flex-col space-y-2">
@@ -117,6 +152,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your name"
+                disabled={isLoading}
               />
             </div>
           )}
@@ -133,6 +169,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your email"
+              disabled={isLoading}
             />
           </div>
 
@@ -148,6 +185,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your password"
+              disabled={isLoading}
             />
           </div>
 
@@ -157,13 +195,19 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
             size="sm"
             className="w-full text-sm text-muted-foreground"
             onClick={fillDemoCredentials}
+            disabled={isLoading}
           >
             Use demo credentials for {role}
           </Button>
 
           <div className="pt-2">
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Processing..." : isRegister ? "Create Account" : "Login"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : isRegister ? "Create Account" : "Login"}
             </Button>
           </div>
 
@@ -172,6 +216,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
               type="button"
               onClick={toggleMode}
               className="text-sm text-blue-600 hover:underline"
+              disabled={isLoading}
             >
               {isRegister 
                 ? "Already have an account? Login" 
