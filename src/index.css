@@ -1,29 +1,33 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.cdnfonts.com/css/opendyslexic');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 210 50% 98%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 210 100% 66%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 35 100% 69%;
+    --secondary-foreground: 35 42% 22%;
+
+    --accent: 262 75% 60%;
+    --accent-foreground: 210 40% 98%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -32,22 +36,15 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -61,17 +58,17 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
+    --primary: 210 100% 66%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 35 100% 69%;
+    --secondary-foreground: 35 42% 22%;
+
+    --accent: 262 75% 60%;
+    --accent-foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
@@ -79,6 +76,7 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -96,6 +94,115 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
+
+  /* Typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold leading-tight tracking-tight;
+  }
+
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-6xl;
+  }
+
+  h2 {
+    @apply text-3xl md:text-4xl;
+  }
+
+  h3 {
+    @apply text-2xl md:text-3xl;
+  }
+
+  h4 {
+    @apply text-xl md:text-2xl;
+  }
+
+  p {
+    @apply leading-relaxed;
+  }
+}
+
+@layer components {
+  /* Glass effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-lg;
+  }
+
+  .glass-dark {
+    @apply bg-black/30 backdrop-blur-lg;
+  }
+
+  /* Card styles */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-medium hover:-translate-y-1;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply px-4 py-2 bg-primary text-primary-foreground rounded-full font-medium 
+           transition-all duration-300 shadow-soft 
+           hover:shadow-blue-glow hover:scale-[1.03];
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-secondary text-secondary-foreground rounded-full font-medium 
+           transition-all duration-300 shadow-soft 
+           hover:shadow-yellow-glow hover:scale-[1.03];
+  }
+
+  .btn-accent {
+    @apply px-4 py-2 bg-accent text-accent-foreground rounded-full font-medium 
+           transition-all duration-300 shadow-soft 
+           hover:shadow-purple-glow hover:scale-[1.03];
+  }
+
+  /* For dyslexic users */
+  .dyslexic-mode {
+    @apply font-dyslexic tracking-wide leading-relaxed;
+  }
+}
+
+/* Accessibility focus styles */
+*:focus-visible {
+  @apply outline-none ring-2 ring-primary/70 ring-offset-2;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Remove arrows from number inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Target word highlighting */
+.target-word {
+  @apply relative inline-block px-1 py-0.5 rounded-md cursor-pointer 
+         transition-all duration-300 
+         hover:scale-110 hover:font-medium;
+}
+
+.target-word.blue {
+  @apply bg-vault-light-blue text-vault-blue hover:bg-vault-blue hover:text-white hover:shadow-blue-glow;
+}
+
+.target-word.orange {
+  @apply bg-vault-light-orange text-vault-orange hover:bg-vault-orange hover:text-white hover:shadow-orange-glow;
+}
+
+.target-word.green {
+  @apply bg-vault-light-green text-vault-green hover:bg-vault-green hover:text-white hover:shadow-green-glow;
+}
+
+.target-word.purple {
+  @apply bg-vault-light-purple text-vault-purple hover:bg-vault-purple hover:text-white hover:shadow-purple-glow;
+}
+
+.target-word.yellow {
+  @apply bg-vault-light-yellow text-vault-yellow hover:bg-vault-yellow hover:text-white hover:shadow-yellow-glow;
 }
