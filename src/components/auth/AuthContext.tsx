@@ -1,5 +1,7 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export interface User {
   id: string;
@@ -14,27 +16,9 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string, role: 'student' | 'educator') => Promise<void>;
   register: (name: string, email: string, password: string, role: 'student' | 'educator') => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isEducator: () => boolean;
 }
-
-// Mock users for demo purposes
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'John Educator',
-    email: 'educator@example.com',
-    role: 'educator',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John'
-  },
-  {
-    id: '2',
-    name: 'Alice Student',
-    email: 'student@example.com',
-    role: 'student',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice'
-  }
-];
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
@@ -43,70 +27,165 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
+  // Check for session on load
   useEffect(() => {
-    // Check if user is stored in localStorage
-    const storedUser = localStorage.getItem('vault_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    setIsLoading(true);
+
+    // Get session and set up auth state change listener
+    const checkSession = async () => {
+      // Check current session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        await fetchUserProfile(session.user.id);
+      } else {
+        setUser(null);
+      }
+      
+      setIsLoading(false);
+    };
+    
+    checkSession();
+
+    // Set up auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          await fetchUserProfile(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+        }
+      }
+    );
+
+    // Cleanup
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  // Fetch user profile from profiles table
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        // Get user email from auth
+        const { data: userData } = await supabase.auth.getUser();
+        
+        setUser({
+          id: data.id,
+          name: data.name,
+          email: userData.user?.email || '',
+          role: data.role,
+          avatar: data.avatar
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setUser(null);
+    }
+  };
 
   const login = async (email: string, password: string, role: 'student' | 'educator') => {
     setIsLoading(true);
     
-    // Simulate API call with timeout
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Find mock user
-    const foundUser = mockUsers.find(u => 
-      u.email.toLowerCase() === email.toLowerCase() && u.role === role
-    );
-    
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('vault_user', JSON.stringify(foundUser));
-    } else {
-      throw new Error('Invalid credentials');
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // Get user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        // Verify user role
+        if (profileData.role !== role) {
+          // Sign out if wrong role
+          await supabase.auth.signOut();
+          throw new Error(`Invalid role. This account is registered as a ${profileData.role}.`);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   const register = async (name: string, email: string, password: string, role: 'student' | 'educator') => {
     setIsLoading(true);
     
-    // Simulate API call with timeout
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Check if user already exists
-    const userExists = mockUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (userExists) {
-      throw new Error('User already exists');
+    try {
+      // Sign up the user with additional metadata for the trigger
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role
+          }
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.user) {
+        throw new Error('Registration failed');
+      }
+
+      // Profile creation is handled by database trigger
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Create new user
-    const newUser: User = {
-      id: `${mockUsers.length + 1}`,
-      name,
-      email,
-      role,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`
-    };
-    
-    // In a real app, you would make an API call to register the user
-    // For demo purposes, we're just setting the user directly
-    setUser(newUser);
-    localStorage.setItem('vault_user', JSON.stringify(newUser));
-    
-    setIsLoading(false);
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('vault_user');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out."
+      });
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const isEducator = () => user?.role === 'educator';
