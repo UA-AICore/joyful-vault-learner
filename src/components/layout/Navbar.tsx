@@ -2,10 +2,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FadeIn } from '@/components/ui/animations';
+import UserMenu from '@/components/auth/UserMenu';
+import { useAuth } from '@/components/auth/AuthContext';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
+  const { isEducator } = useAuth();
   
   useEffect(() => {
     const handleScroll = () => {
@@ -25,6 +28,11 @@ const Navbar = () => {
     { name: 'Activities', path: '/activities' },
     { name: 'About', path: '/about' },
   ];
+  
+  // Add the manage activities link for educators
+  if (isEducator()) {
+    navLinks.push({ name: 'Manage Activities', path: '/manage-activities' });
+  }
   
   return (
     <header 
@@ -58,11 +66,7 @@ const Navbar = () => {
         </nav>
         
         <div className="flex items-center gap-3">
-          <FadeIn>
-            <button className="btn-primary hidden sm:block">
-              Try for Free
-            </button>
-          </FadeIn>
+          <UserMenu />
           
           <button className="block md:hidden text-foreground p-2 rounded-full hover:bg-muted transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">

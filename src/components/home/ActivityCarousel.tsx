@@ -14,6 +14,7 @@ const activities = [
     categories: ["Vocabulary", "Association"],
     materials: ["Visual Cards"],
     color: "blue" as const,
+    imageUrl: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
   {
     id: 2,
@@ -23,6 +24,7 @@ const activities = [
     categories: ["Grammar", "Syntax"],
     materials: ["Word Cards"],
     color: "orange" as const,
+    imageUrl: "https://images.unsplash.com/photo-1555431189-0fabf2667795?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
   {
     id: 3,
@@ -32,6 +34,7 @@ const activities = [
     categories: ["Phonics", "Rhyming"],
     materials: ["Audio Clips"],
     color: "green" as const,
+    imageUrl: "https://images.unsplash.com/photo-1588075592446-265fd1e6e76f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
   {
     id: 4,
@@ -41,6 +44,7 @@ const activities = [
     categories: ["Vocabulary", "Synonyms"],
     materials: ["Picture Cards"],
     color: "purple" as const,
+    imageUrl: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
   {
     id: 5,
@@ -50,6 +54,7 @@ const activities = [
     categories: ["Comprehension", "Sequencing"],
     materials: ["Story Cards"],
     color: "yellow" as const,
+    imageUrl: "https://images.unsplash.com/photo-1553729784-e91953dec042?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
 ];
 
@@ -110,6 +115,15 @@ const ActivityCarousel = () => {
                 >
                   <Link to={`/activities/${activity.id}`}>
                     <div className={`h-full rounded-2xl bg-white p-6 shadow-soft card-hover overflow-hidden`}>
+                      {/* Image */}
+                      <div className="aspect-video rounded-lg overflow-hidden mb-4 bg-vault-light-blue">
+                        <img 
+                          src={activity.imageUrl || `https://api.dicebear.com/7.x/shapes/svg?seed=${activity.id}`} 
+                          alt={activity.title} 
+                          className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                        />
+                      </div>
+
                       <div className="mb-4">
                         <ChipBadge text={activity.categories[0]} variant={activity.color} />
                       </div>

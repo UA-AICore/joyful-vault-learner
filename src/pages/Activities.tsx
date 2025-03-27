@@ -5,7 +5,7 @@ import SearchFilters from '@/components/activities/SearchFilters';
 import ActivityCard, { Activity } from '@/components/activities/ActivityCard';
 import { FadeIn, StaggeredChildren } from '@/components/ui/animations';
 
-// Sample data
+// Sample data with images
 const sampleActivities: Activity[] = [
   {
     id: 1,
@@ -16,6 +16,7 @@ const sampleActivities: Activity[] = [
     materials: ["Visual Cards"],
     color: "blue",
     status: "active",
+    imageUrl: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
   {
     id: 2,
@@ -26,6 +27,7 @@ const sampleActivities: Activity[] = [
     materials: ["Word Cards"],
     color: "orange",
     status: "active",
+    imageUrl: "https://images.unsplash.com/photo-1555431189-0fabf2667795?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
   {
     id: 3,
@@ -36,6 +38,7 @@ const sampleActivities: Activity[] = [
     materials: ["Audio Clips"],
     color: "green",
     status: "active",
+    imageUrl: "https://images.unsplash.com/photo-1588075592446-265fd1e6e76f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
   {
     id: 4,
@@ -46,6 +49,7 @@ const sampleActivities: Activity[] = [
     materials: ["Picture Cards"],
     color: "purple",
     status: "draft",
+    imageUrl: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
   {
     id: 5,
@@ -56,6 +60,7 @@ const sampleActivities: Activity[] = [
     materials: ["Story Cards"],
     color: "yellow",
     status: "active",
+    imageUrl: "https://images.unsplash.com/photo-1553729784-e91953dec042?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
   {
     id: 6,
@@ -66,6 +71,7 @@ const sampleActivities: Activity[] = [
     materials: ["Picture Cards", "Audio Clips"],
     color: "blue",
     status: "active",
+    imageUrl: "https://images.unsplash.com/photo-1517673132405-a56a62b18caf?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
   },
 ];
 
@@ -137,7 +143,7 @@ const Activities = () => {
             <div className="lg:col-span-2">
               <StaggeredChildren
                 className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                animation="fadeIn"
+                animation="fade"
                 staggerDelay={0.1}
                 baseDelay={0.3}
               >

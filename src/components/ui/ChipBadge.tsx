@@ -9,6 +9,7 @@ interface ChipBadgeProps {
   variant?: ColorVariant;
   className?: string;
   onClick?: () => void;
+  children?: React.ReactNode; // Added this line to allow children
 }
 
 const colorMap: Record<ColorVariant, string> = {
@@ -23,7 +24,8 @@ const ChipBadge: React.FC<ChipBadgeProps> = ({
   text, 
   variant = 'blue', 
   className,
-  onClick
+  onClick,
+  children
 }) => {
   return (
     <span 
@@ -35,7 +37,7 @@ const ChipBadge: React.FC<ChipBadgeProps> = ({
       )}
       onClick={onClick}
     >
-      {text}
+      {children || text}
     </span>
   );
 };

@@ -22,19 +22,20 @@ interface ActivityCardProps {
 }
 
 const ActivityCard: React.FC<ActivityCardProps> = ({ activity, className }) => {
+  // Default image if none is provided
+  const defaultImage = `https://api.dicebear.com/7.x/shapes/svg?seed=${activity.id}&backgroundColor=b6e3f4`;
+  
   return (
     <Link to={`/activities/${activity.id}`}>
       <div className={`h-full rounded-2xl bg-white p-6 shadow-soft card-hover overflow-hidden ${className}`}>
-        {/* Image if available */}
-        {activity.imageUrl && (
-          <div className="aspect-video rounded-lg overflow-hidden mb-4 bg-vault-light-blue">
-            <img 
-              src={activity.imageUrl} 
-              alt={activity.title} 
-              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-            />
-          </div>
-        )}
+        {/* Image */}
+        <div className="aspect-video rounded-lg overflow-hidden mb-4 bg-vault-light-blue">
+          <img 
+            src={activity.imageUrl || defaultImage} 
+            alt={activity.title} 
+            className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+          />
+        </div>
         
         {/* Category Badge */}
         <div className="mb-4 flex flex-wrap gap-2">
