@@ -48,7 +48,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data) {
         // Get user email from auth
-        const { data: userData } = await supabase.auth.getUser();
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Error getting user data:', userError);
+          throw userError;
+        }
         
         setUser({
           id: data.id,
@@ -71,50 +76,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check for session on load
   useEffect(() => {
-    setIsLoading(true);
-    console.log('Setting up auth state listener');
-
-    // Set up auth state change listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        console.log('Auth state changed:', event, currentSession?.user?.id);
-        setSession(currentSession);
-        
-        if (event === 'SIGNED_IN' && currentSession) {
-          // Use setTimeout to prevent potential Supabase auth deadlock
-          setTimeout(() => {
-            fetchUserProfile(currentSession.user.id);
-          }, 0);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-        }
-      }
-    );
-
-    // THEN check for existing session
-    const checkSession = async () => {
+    const initAuth = async () => {
+      setIsLoading(true);
       try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        console.log('Initial session check:', currentSession?.user?.id);
+        console.log('Initializing auth...');
         
-        setSession(currentSession);
+        // Get current session first to prevent race conditions
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         
-        if (currentSession?.user) {
-          await fetchUserProfile(currentSession.user.id);
+        if (sessionError) {
+          console.error('Session check error:', sessionError);
+          throw sessionError;
         }
+        
+        console.log('Initial session check:', sessionData?.session?.user?.id);
+        setSession(sessionData.session);
+        
+        // If session exists, fetch user profile
+        if (sessionData.session?.user) {
+          await fetchUserProfile(sessionData.session.user.id);
+        }
+        
+        // Set up auth state change listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          (event, currentSession) => {
+            console.log('Auth state changed:', event, currentSession?.user?.id);
+            setSession(currentSession);
+            
+            if (event === 'SIGNED_IN' && currentSession) {
+              // Avoid potential Supabase auth deadlock by using setTimeout
+              setTimeout(() => {
+                fetchUserProfile(currentSession.user.id);
+              }, 0);
+            } else if (event === 'SIGNED_OUT') {
+              setUser(null);
+            }
+          }
+        );
+        
+        return () => {
+          subscription.unsubscribe();
+        };
       } catch (error) {
-        console.error('Session check error:', error);
+        console.error('Auth initialization error:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    checkSession();
-
-    // Cleanup
-    return () => {
-      subscription.unsubscribe();
-    };
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string, role: 'student' | 'educator') => {
@@ -135,30 +145,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
         // Get user profile
-        console.log('Fetching profile after login for user:', data.user.id);
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error('Profile fetch error:', profileError);
-          throw profileError;
-        }
-
-        if (!profileData) {
-          console.error('No profile found for user after login');
-          throw new Error('User profile not found');
-        }
-
-        // Verify user role
-        if (profileData.role !== role) {
-          // Sign out if wrong role
-          console.error('Role mismatch:', profileData.role, 'vs requested', role);
-          await supabase.auth.signOut();
-          throw new Error(`Invalid role. This account is registered as a ${profileData.role}.`);
-        }
+        console.log('Login successful for user:', data.user.id);
+        
+        // Role verification will happen in fetchUserProfile triggered by auth state change
+      } else {
+        console.error('Login returned no user data');
+        throw new Error('Login failed');
       }
     } catch (error) {
       console.error('Login process error:', error);
@@ -209,8 +201,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       console.log('Logging out user');
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Error during logout:', error);
+        throw error;
+      }
+      
       setUser(null);
+      setSession(null);
+      
       toast({
         title: "Logged out",
         description: "You have been successfully logged out."

@@ -5,6 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from './AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface LoginFormProps {
   isOpen: boolean;
@@ -34,13 +36,13 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
           throw new Error("Name is required");
         }
         
-        await register(name, email, password, role);
+        await register(name.trim(), email.trim(), password, role);
         toast({
           title: "Account created",
           description: `Welcome to Vault Learning, ${name}!`,
         });
       } else {
-        await login(email, password, role);
+        await login(email.trim(), password, role);
         toast({
           title: "Welcome back!",
           description: "You've successfully logged in.",
@@ -92,10 +94,10 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
   const fillDemoCredentials = () => {
     if (role === 'educator') {
       setEmail('educator@example.com');
-      setPassword('password');
+      setPassword('password123');
     } else {
       setEmail('student@example.com');
-      setPassword('password');
+      setPassword('password123');
     }
   };
 
@@ -141,16 +143,13 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
 
           {isRegister && (
             <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium">
-                Name
-              </label>
-              <input
+              <Label htmlFor="name">Name</Label>
+              <Input
                 id="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your name"
                 disabled={isLoading}
               />
@@ -158,32 +157,26 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
           )}
 
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium">
-              Email
-            </label>
-            <input
+            <Label htmlFor="email">Email</Label>
+            <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your email"
               disabled={isLoading}
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium">
-              Password
-            </label>
-            <input
+            <Label htmlFor="password">Password</Label>
+            <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your password"
               disabled={isLoading}
             />
