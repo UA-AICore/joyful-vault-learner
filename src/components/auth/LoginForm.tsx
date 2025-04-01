@@ -25,21 +25,45 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
   const { login, register } = useAuth();
   const { toast } = useToast();
 
+  const validateEmail = (email: string): boolean => {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailPattern.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setErrorMessage(null);
+    
+    // Basic validation
+    if (!validateEmail(email.trim())) {
+      setErrorMessage("Please enter a valid email address");
+      return;
+    }
+    
+    if (password.length < 6) {
+      setErrorMessage("Password must be at least 6 characters");
+      return;
+    }
+    
+    if (isRegister && !name.trim()) {
+      setErrorMessage("Name is required");
+      return;
+    }
+    
+    setIsLoading(true);
     
     try {
       if (isRegister) {
-        if (!name.trim()) {
-          throw new Error("Name is required");
-        }
-        
         await register(name.trim(), email.trim(), password, role);
         toast({
           title: "Account created",
           description: `Welcome to Vault Learning, ${name}!`,
+        });
+        
+        // For development without email verification
+        toast({
+          title: "Check your email",
+          description: "Please check your email to verify your account",
         });
       } else {
         await login(email.trim(), password, role);
@@ -85,8 +109,6 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
     setIsRegister(!isRegister);
     // Reset form state
     setPassword('');
-    setEmail('');
-    setName('');
     setErrorMessage(null);
   };
 
@@ -102,7 +124,9 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open && !isLoading) onClose();
+    }}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{isRegister ? 'Create Account' : 'Login to Vault Learning'}</DialogTitle>
@@ -127,6 +151,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
                 onClick={() => setRole('student')}
                 variant={role === 'student' ? 'default' : 'outline'}
                 className="flex-1"
+                disabled={isLoading}
               >
                 Student
               </Button>
@@ -135,6 +160,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
                 onClick={() => setRole('educator')}
                 variant={role === 'educator' ? 'default' : 'outline'}
                 className="flex-1"
+                disabled={isLoading}
               >
                 Educator
               </Button>
@@ -152,6 +178,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
                 required
                 placeholder="Enter your name"
                 disabled={isLoading}
+                autoComplete="name"
               />
             </div>
           )}
@@ -166,6 +193,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
               required
               placeholder="Enter your email"
               disabled={isLoading}
+              autoComplete={isRegister ? "email" : "username"}
             />
           </div>
 
@@ -179,6 +207,7 @@ const LoginForm = ({ isOpen, onClose }: LoginFormProps) => {
               required
               placeholder="Enter your password"
               disabled={isLoading}
+              autoComplete={isRegister ? "new-password" : "current-password"}
             />
           </div>
 

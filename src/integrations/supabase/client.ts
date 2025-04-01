@@ -11,6 +11,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   auth: {
     storage: localStorage,  // Use localStorage for persistence
     persistSession: true,   // Keep session between page refreshes
-    autoRefreshToken: true  // Automatically refresh token before expiry
+    autoRefreshToken: true, // Automatically refresh token before expiry
+    detectSessionInUrl: true // Enable session detection in URL for OAuth
   }
 });

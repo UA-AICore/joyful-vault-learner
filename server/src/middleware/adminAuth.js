@@ -20,17 +20,17 @@ const adminAuth = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     
     // Verify the token with Supabase
-    const { data, error } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
-    if (error) {
-      console.error('Auth error:', error);
+    if (authError) {
+      console.error('Auth error:', authError);
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Invalid or expired token'
       });
     }
     
-    if (!data.user) {
+    if (!user) {
       console.error('No user found for token');
       return res.status(401).json({
         error: 'Unauthorized',
@@ -42,7 +42,7 @@ const adminAuth = async (req, res, next) => {
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', data.user.id)
+      .eq('id', user.id)
       .maybeSingle();
       
     if (profileError) {
@@ -54,7 +54,7 @@ const adminAuth = async (req, res, next) => {
     }
     
     if (!profileData) {
-      console.error('No profile found for user:', data.user.id);
+      console.error('No profile found for user:', user.id);
       return res.status(403).json({
         error: 'Forbidden',
         message: 'User profile not found'
@@ -71,7 +71,7 @@ const adminAuth = async (req, res, next) => {
     
     // Add user info to request for use in controllers
     req.user = {
-      id: data.user.id,
+      id: user.id,
       role: profileData.role
     };
     

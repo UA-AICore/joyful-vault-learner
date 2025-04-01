@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching user profile:', error);
-        throw error;
+        return null;
       }
 
       if (data) {
@@ -52,25 +52,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (userError) {
           console.error('Error getting user data:', userError);
-          throw userError;
+          return null;
         }
         
-        setUser({
+        const userProfile = {
           id: data.id,
           name: data.name,
           email: userData.user?.email || '',
           role: data.role,
           avatar: data.avatar
-        });
+        };
         
-        console.log('User profile set:', data);
+        console.log('User profile set:', userProfile);
+        setUser(userProfile);
+        return userProfile;
       } else {
         console.warn('No profile found for user:', userId);
-        setUser(null);
+        return null;
       }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
-      setUser(null);
+      return null;
     }
   };
 
@@ -81,12 +83,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('Initializing auth...');
         
-        // Get current session first to prevent race conditions
+        // Set up auth state change listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, currentSession) => {
+            console.log('Auth state changed:', event, currentSession?.user?.id);
+            setSession(currentSession);
+            
+            if (event === 'SIGNED_IN' && currentSession?.user) {
+              // Use setTimeout to avoid potential Supabase auth deadlock
+              setTimeout(async () => {
+                await fetchUserProfile(currentSession.user.id);
+                setIsLoading(false);
+              }, 0);
+            } else if (event === 'SIGNED_OUT') {
+              setUser(null);
+              setIsLoading(false);
+            }
+          }
+        );
+        
+        // Then check for existing session
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
           console.error('Session check error:', sessionError);
-          throw sessionError;
+          setIsLoading(false);
+          return;
         }
         
         console.log('Initial session check:', sessionData?.session?.user?.id);
@@ -97,29 +119,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await fetchUserProfile(sessionData.session.user.id);
         }
         
-        // Set up auth state change listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          (event, currentSession) => {
-            console.log('Auth state changed:', event, currentSession?.user?.id);
-            setSession(currentSession);
-            
-            if (event === 'SIGNED_IN' && currentSession) {
-              // Avoid potential Supabase auth deadlock by using setTimeout
-              setTimeout(() => {
-                fetchUserProfile(currentSession.user.id);
-              }, 0);
-            } else if (event === 'SIGNED_OUT') {
-              setUser(null);
-            }
-          }
-        );
+        setIsLoading(false);
         
         return () => {
           subscription.unsubscribe();
         };
       } catch (error) {
         console.error('Auth initialization error:', error);
-      } finally {
         setIsLoading(false);
       }
     };
@@ -144,10 +150,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data.user) {
-        // Get user profile
         console.log('Login successful for user:', data.user.id);
         
-        // Role verification will happen in fetchUserProfile triggered by auth state change
+        // Fetch profile to verify role
+        const profile = await fetchUserProfile(data.user.id);
+        
+        if (!profile) {
+          throw new Error('User profile not found');
+        }
+        
+        if (profile.role !== role) {
+          throw new Error(`Invalid role. You are registered as a ${profile.role}, not a ${role}.`);
+        }
       } else {
         console.error('Login returned no user data');
         throw new Error('Login failed');
@@ -190,6 +204,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Registration successful for:', data.user.id);
       // Profile creation is handled by database trigger
+      
+      // Simulate confirmation (since in development we might not have email verification)
+      // Uncomment in development environments if needed
+      // await supabase.auth.signInWithPassword({ email, password });
+      
     } catch (error) {
       console.error('Registration process error:', error);
       throw error;
