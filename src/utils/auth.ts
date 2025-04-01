@@ -1,5 +1,4 @@
 
-import jwt from 'jsonwebtoken';
 import bcryptjs from 'bcryptjs';
 import { query } from '../config/db';
 
@@ -16,20 +15,23 @@ export const verifyPassword = async (password: string, hash: string): Promise<bo
   return await bcryptjs.compare(password, hash);
 };
 
-// Generate JWT token
-export const generateToken = (userId: string, role: string): string => {
-  return jwt.sign(
-    { userId, role },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-};
-
-// Verify JWT token
-export const verifyToken = (token: string): any => {
+// Parse JWT token without verification (for client-side use only)
+export const parseToken = (token: string): any => {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    // Basic parsing of JWT without verification
+    // This is just for reading data on the client side
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      window
+        .atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
   } catch (error) {
+    console.error('Token parsing error:', error);
     return null;
   }
 };
@@ -65,9 +67,26 @@ export const authenticateUser = async (email: string, password: string) => {
       return { user: null, error: 'User profile not found' };
     }
 
-    const profile = profileData[0];
-    const token = generateToken(user.id, profile.role);
+    // Generate token on the server side via auth API
+    const tokenResponse = await fetch('/api/auth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: user.id,
+        role: profileData[0].role,
+      }),
+    });
 
+    if (!tokenResponse.ok) {
+      throw new Error('Token generation failed');
+    }
+
+    const { token } = await tokenResponse.json();
+
+    const profile = profileData[0];
+    
     return {
       user: {
         id: user.id,

@@ -1,7 +1,7 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { authenticateUser, verifyToken } from '@/utils/auth';
+import { authenticateUser, parseToken } from '@/utils/auth';
 import { query } from '@/config/db';
 
 export interface User {
@@ -40,10 +40,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedToken = localStorage.getItem('auth_token');
         
         if (storedToken) {
-          const decoded = verifyToken(storedToken);
+          // Verify token with the server
+          const verifyResponse = await fetch('/api/auth/verify-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token: storedToken }),
+          });
           
-          if (decoded && decoded.userId) {
-            await fetchUserProfile(decoded.userId);
+          const verifyResult = await verifyResponse.json();
+          
+          if (verifyResult.valid && verifyResult.decoded?.userId) {
+            await fetchUserProfile(verifyResult.decoded.userId);
             setToken(storedToken);
           } else {
             // Token invalid or expired
@@ -152,13 +161,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('User with this email already exists');
       }
 
-      // Hash password and create user
-      // In a real implementation, this would be handled by a server endpoint
-      const hashedPassword = await fetch('/api/auth/hash-password', {
+      // Hash password using server endpoint
+      const hashResponse = await fetch('/api/auth/hash-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password })
-      }).then(res => res.text());
+      });
+      
+      if (!hashResponse.ok) {
+        throw new Error('Failed to process password');
+      }
+      
+      const hashedPassword = await hashResponse.text();
 
       // Insert user and profile
       const { data: userData, error: userError } = await query(

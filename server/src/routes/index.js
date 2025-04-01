@@ -4,6 +4,7 @@ const activitiesRoutes = require('./activities.routes');
 const searchRoutes = require('./search.routes');
 const adminRoutes = require('./admin.routes');
 const dbRoutes = require('./db.routes');
+const authRoutes = require('./auth.routes');
 
 const router = express.Router();
 
@@ -12,6 +13,7 @@ router.use('/activities', activitiesRoutes);
 router.use('/search', searchRoutes);
 router.use('/admin', adminRoutes);
 router.use('/db', dbRoutes);
+router.use('/auth', authRoutes);
 
 // Simple info route
 router.get('/info', (req, res) => {
