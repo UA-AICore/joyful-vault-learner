@@ -1,8 +1,7 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { authenticateUser, parseToken } from '@/utils/auth';
-import { query } from '@/config/db';
+import { authenticateUser, parseToken, registerUser, hashPassword } from '@/utils/auth';
 
 export interface User {
   id: string;
@@ -52,7 +51,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const verifyResult = await verifyResponse.json();
           
           if (verifyResult.valid && verifyResult.decoded?.userId) {
-            await fetchUserProfile(verifyResult.decoded.userId);
+            // For our temporary solution, we'll just use the token data
+            // In a real solution, this would fetch the user profile from the database
+            setUser({
+              id: verifyResult.decoded.userId,
+              name: verifyResult.decoded.userId === '1' ? 'Student User' : 'Educator User',
+              email: verifyResult.decoded.userId === '1' ? 'student@example.com' : 'educator@example.com',
+              role: verifyResult.decoded.role,
+              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${verifyResult.decoded.role}`
+            });
             setToken(storedToken);
           } else {
             // Token invalid or expired
@@ -73,37 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     initAuth();
   }, []);
-
-  // Fetch user profile
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await query(
-        'SELECT p.*, u.email FROM profiles p JOIN user_accounts u ON p.id = u.id WHERE p.id = $1',
-        [userId]
-      );
-
-      if (error || !data || data.length === 0) {
-        console.error('Error fetching user profile:', error);
-        return null;
-      }
-
-      const profile = data[0];
-      const userProfile = {
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        role: profile.role,
-        avatar: profile.avatar
-      };
-      
-      console.log('User profile set:', userProfile);
-      setUser(userProfile);
-      return userProfile;
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
-      return null;
-    }
-  };
 
   const login = async (email: string, password: string, role: 'student' | 'educator') => {
     setIsLoading(true);
@@ -150,49 +126,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Attempting registration for:', email, 'as', role);
       
-      // This would need to be implemented based on your registration flow
-      // For now, showing an example implementation
-      const { data: existingUser } = await query(
-        'SELECT * FROM user_accounts WHERE email = $1',
-        [email]
-      );
-
-      if (existingUser && existingUser.length > 0) {
-        throw new Error('User with this email already exists');
-      }
-
-      // Hash password using server endpoint
-      const hashResponse = await fetch('/api/auth/hash-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
+      // Hash password
+      const hashedPassword = await hashPassword(password);
       
-      if (!hashResponse.ok) {
-        throw new Error('Failed to process password');
-      }
+      // Register user with our in-memory function
+      const { success, error, userId } = await registerUser(name, email, hashedPassword, role);
       
-      const hashedPassword = await hashResponse.text();
-
-      // Insert user and profile
-      const { data: userData, error: userError } = await query(
-        'INSERT INTO user_accounts (email, password_hash) VALUES ($1, $2) RETURNING id',
-        [email, hashedPassword]
-      );
-
-      if (userError || !userData || userData.length === 0) {
-        throw new Error('Failed to create user account');
-      }
-
-      const userId = userData[0].id;
-
-      const { error: profileError } = await query(
-        'INSERT INTO profiles (id, name, role, avatar) VALUES ($1, $2, $3, $4)',
-        [userId, name, role, `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`]
-      );
-
-      if (profileError) {
-        throw new Error('Failed to create user profile');
+      if (!success) {
+        throw new Error(error || 'Registration failed');
       }
 
       toast({

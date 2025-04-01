@@ -1,6 +1,6 @@
 
 import bcryptjs from 'bcryptjs';
-import { query } from '../config/db';
+import jwt_decode from 'jwt-decode';
 
 const JWT_SECRET = import.meta.env.VITE_JWT_SECRET || 'your-secret-key';
 const SALT_ROUNDS = 10;
@@ -18,82 +18,89 @@ export const verifyPassword = async (password: string, hash: string): Promise<bo
 // Parse JWT token without verification (for client-side use only)
 export const parseToken = (token: string): any => {
   try {
-    // Basic parsing of JWT without verification
-    // This is just for reading data on the client side
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      window
-        .atob(base64)
-        .split('')
-        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
+    // Using jwt-decode for client-side parsing only
+    return jwt_decode(token);
   } catch (error) {
     console.error('Token parsing error:', error);
     return null;
   }
 };
 
+// Mock users for temporary authentication
+const MOCK_USERS = [
+  {
+    id: '1',
+    email: 'student@example.com',
+    password_hash: '$2a$10$zXEHJIlyta8YJ.oJtZ1ABOUKqNiIy5ADXWJqnYxQRQSCYP/hS9.dG', // password123
+    profile: {
+      id: '1',
+      name: 'Student User',
+      role: 'student',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=student'
+    }
+  },
+  {
+    id: '2',
+    email: 'educator@example.com',
+    password_hash: '$2a$10$zXEHJIlyta8YJ.oJtZ1ABOUKqNiIy5ADXWJqnYxQRQSCYP/hS9.dG', // password123
+    profile: {
+      id: '2',
+      name: 'Educator User',
+      role: 'educator',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=educator'
+    }
+  }
+];
+
+// Mock registered users (for registration functionality)
+let registeredUsers = [...MOCK_USERS];
+
 // User authentication
 export const authenticateUser = async (email: string, password: string) => {
   try {
-    // Get user from database
-    const { data, error } = await query(
-      'SELECT * FROM user_accounts WHERE email = $1',
-      [email]
-    );
-
-    if (error || !data || data.length === 0) {
+    console.log('Authenticating user:', email);
+    
+    // Find user in mock data
+    const user = registeredUsers.find(u => u.email === email);
+    
+    if (!user) {
+      console.log('User not found');
       return { user: null, error: 'Invalid email or password' };
     }
 
     // Verify password
-    const user = data[0];
     const isValidPassword = await verifyPassword(password, user.password_hash);
 
     if (!isValidPassword) {
+      console.log('Invalid password');
       return { user: null, error: 'Invalid email or password' };
     }
 
-    // Get user profile
-    const { data: profileData } = await query(
-      'SELECT * FROM profiles WHERE id = $1',
-      [user.id]
-    );
-
-    if (!profileData || profileData.length === 0) {
-      return { user: null, error: 'User profile not found' };
-    }
-
     // Generate token on the server side via auth API
-    const tokenResponse = await fetch('/api/auth/token', {
+    const response = await fetch('/api/auth/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         userId: user.id,
-        role: profileData[0].role,
+        role: user.profile.role,
       }),
     });
 
-    if (!tokenResponse.ok) {
+    if (!response.ok) {
       throw new Error('Token generation failed');
     }
 
-    const { token } = await tokenResponse.json();
-
-    const profile = profileData[0];
+    const { token } = await response.json();
     
     return {
       user: {
         id: user.id,
         email: user.email,
-        name: profile.name,
-        role: profile.role,
-        avatar: profile.avatar
+        name: user.profile.name,
+        role: user.profile.role,
+        avatar: user.profile.avatar
       },
       token,
       error: null
@@ -101,5 +108,41 @@ export const authenticateUser = async (email: string, password: string) => {
   } catch (error) {
     console.error('Authentication error:', error);
     return { user: null, error: 'Authentication failed' };
+  }
+};
+
+// Add a new user (for registration)
+export const registerUser = async (name: string, email: string, passwordHash: string, role: 'student' | 'educator') => {
+  try {
+    // Check if user already exists
+    if (registeredUsers.some(u => u.email === email)) {
+      return { success: false, error: 'User with this email already exists' };
+    }
+    
+    // Create a new user ID
+    const id = (registeredUsers.length + 1).toString();
+    
+    // Create new user
+    const newUser = {
+      id,
+      email,
+      password_hash: passwordHash,
+      profile: {
+        id,
+        name,
+        role,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`
+      }
+    };
+    
+    // Add to mock database
+    registeredUsers.push(newUser);
+    
+    console.log('New user registered:', { id, email, name, role });
+    
+    return { success: true, userId: id };
+  } catch (error) {
+    console.error('Registration error:', error);
+    return { success: false, error: 'Registration failed' };
   }
 };
