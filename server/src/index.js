@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const routes = require('./routes');
 const { errorHandler } = require('./middleware/errorHandler');
-const supabase = require('./config/supabase');
+const { testConnection } = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -13,15 +13,15 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Test Supabase connection on startup
-supabase.testConnection()
+// Test Database connection on startup
+testConnection()
   .then(success => {
     if (!success) {
-      console.error('Warning: Could not connect to Supabase. Check your configuration.');
+      console.error('Warning: Could not connect to PostgreSQL. Check your configuration.');
     }
   })
   .catch(err => {
-    console.error('Error testing Supabase connection:', err);
+    console.error('Error testing PostgreSQL connection:', err);
   });
 
 // Routes

@@ -1,27 +1,25 @@
 
-const supabase = require('../config/supabase');
+const { query } = require('../config/db');
 
 /**
  * Admin service - handles database operations for admin functions
- * This handles category and material management
  */
 const adminService = {
   // Categories management
   getAllCategories: async () => {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('name');
+    const { data, error } = await query(
+      'SELECT * FROM categories ORDER BY name'
+    );
     
     if (error) throw error;
     return data;
   },
   
   createCategory: async (name) => {
-    const { data, error } = await supabase
-      .from('categories')
-      .insert([{ name }])
-      .select();
+    const { data, error } = await query(
+      'INSERT INTO categories (name) VALUES ($1) RETURNING *',
+      [name]
+    );
     
     if (error) throw error;
     return data[0];
@@ -29,18 +27,17 @@ const adminService = {
   
   deleteCategory: async (id) => {
     // First check if the category exists
-    const { data: existingCategory } = await supabase
-      .from('categories')
-      .select('id')
-      .eq('id', id)
-      .single();
+    const { data: existingCategory } = await query(
+      'SELECT id FROM categories WHERE id = $1',
+      [id]
+    );
     
-    if (!existingCategory) return false;
+    if (!existingCategory || existingCategory.length === 0) return false;
     
-    const { error } = await supabase
-      .from('categories')
-      .delete()
-      .eq('id', id);
+    const { error } = await query(
+      'DELETE FROM categories WHERE id = $1',
+      [id]
+    );
     
     if (error) throw error;
     return true;
@@ -48,20 +45,19 @@ const adminService = {
   
   // Materials management
   getAllMaterials: async () => {
-    const { data, error } = await supabase
-      .from('materials')
-      .select('*')
-      .order('name');
+    const { data, error } = await query(
+      'SELECT * FROM materials ORDER BY name'
+    );
     
     if (error) throw error;
     return data;
   },
   
   createMaterial: async (name) => {
-    const { data, error } = await supabase
-      .from('materials')
-      .insert([{ name }])
-      .select();
+    const { data, error } = await query(
+      'INSERT INTO materials (name) VALUES ($1) RETURNING *',
+      [name]
+    );
     
     if (error) throw error;
     return data[0];
@@ -69,18 +65,17 @@ const adminService = {
   
   deleteMaterial: async (id) => {
     // First check if the material exists
-    const { data: existingMaterial } = await supabase
-      .from('materials')
-      .select('id')
-      .eq('id', id)
-      .single();
+    const { data: existingMaterial } = await query(
+      'SELECT id FROM materials WHERE id = $1',
+      [id]
+    );
     
-    if (!existingMaterial) return false;
+    if (!existingMaterial || existingMaterial.length === 0) return false;
     
-    const { error } = await supabase
-      .from('materials')
-      .delete()
-      .eq('id', id);
+    const { error } = await query(
+      'DELETE FROM materials WHERE id = $1',
+      [id]
+    );
     
     if (error) throw error;
     return true;

@@ -1,8 +1,9 @@
 
-const supabase = require('../config/supabase');
+const { query } = require('../config/db');
+const jwt = require('jsonwebtoken');
 
 /**
- * Middleware to verify admin access using Supabase token
+ * Middleware to verify admin access using JWT token
  */
 const adminAuth = async (req, res, next) => {
   try {
@@ -19,33 +20,23 @@ const adminAuth = async (req, res, next) => {
     // Extract the token
     const token = authHeader.split(' ')[1];
     
-    // Verify the token with Supabase
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Verify the token (in a real app, use a proper JWT secret)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     
-    if (authError) {
-      console.error('Auth error:', authError);
+    if (!decoded || !decoded.userId) {
       return res.status(401).json({
         error: 'Unauthorized',
-        message: 'Invalid or expired token'
-      });
-    }
-    
-    if (!user) {
-      console.error('No user found for token');
-      return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'User not found'
+        message: 'Invalid token'
       });
     }
     
     // Get user profile to check role
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
+    const { data: profileData, error: profileError } = await query(
+      'SELECT role FROM profiles WHERE id = $1',
+      [decoded.userId]
+    );
       
-    if (profileError) {
+    if (profileError || !profileData || profileData.length === 0) {
       console.error('Profile fetch error:', profileError);
       return res.status(500).json({
         error: 'Server Error',
@@ -53,16 +44,8 @@ const adminAuth = async (req, res, next) => {
       });
     }
     
-    if (!profileData) {
-      console.error('No profile found for user:', user.id);
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'User profile not found'
-      });
-    }
-    
     // Check if user is an educator (admin)
-    if (profileData.role !== 'educator') {
+    if (profileData[0].role !== 'educator') {
       return res.status(403).json({
         error: 'Forbidden',
         message: 'Educator role required for this operation'
@@ -71,8 +54,8 @@ const adminAuth = async (req, res, next) => {
     
     // Add user info to request for use in controllers
     req.user = {
-      id: user.id,
-      role: profileData.role
+      id: decoded.userId,
+      role: profileData[0].role
     };
     
     // If all checks pass, proceed

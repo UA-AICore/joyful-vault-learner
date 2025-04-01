@@ -1,5 +1,5 @@
 
-const supabase = require('../config/supabase');
+const { query } = require('../config/db');
 
 /**
  * Activities service - handles database operations for activities
@@ -10,10 +10,9 @@ const activitiesService = {
    */
   getAllActivities: async () => {
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await query(
+        'SELECT * FROM activities ORDER BY created_at DESC'
+      );
       
       if (error) {
         console.error('Error fetching activities:', error);
@@ -31,17 +30,16 @@ const activitiesService = {
    */
   getActivityById: async (id) => {
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const { data, error } = await query(
+        'SELECT * FROM activities WHERE id = $1',
+        [id]
+      );
       
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching activity by ID:', error);
-        throw error; // PGRST116 is the "not found" error
+        throw error;
       }
-      return data;
+      return data?.[0] || null;
     } catch (error) {
       console.error('Unexpected error in getActivityById:', error);
       throw error;
@@ -53,36 +51,29 @@ const activitiesService = {
    */
   createActivity: async (activityData) => {
     try {
-      // Ensure all required fields have proper types
+      // Convert JavaScript objects to PostgreSQL JSON
       const activity = {
-        title: activityData.title,
-        description: activityData.description,
-        target_words: Array.isArray(activityData.target_words) 
-          ? activityData.target_words 
-          : [],
-        target_sentences: activityData.target_sentences || {},
-        categories: Array.isArray(activityData.categories) 
-          ? activityData.categories 
-          : [],
-        materials: Array.isArray(activityData.materials) 
-          ? activityData.materials 
-          : [],
-        video_url: activityData.video_url || null,
-        image_url: activityData.image_url || null,
-        status: activityData.status || 'Draft',
-        color: activityData.color || '#4285F4' // Default color if not provided
+        ...activityData,
+        target_words: JSON.stringify(activityData.target_words || []),
+        target_sentences: JSON.stringify(activityData.target_sentences || {}),
+        categories: JSON.stringify(activityData.categories || []),
+        materials: JSON.stringify(activityData.materials || [])
       };
 
-      const { data, error } = await supabase
-        .from('activities')
-        .insert([activity])
-        .select();
+      const columns = Object.keys(activity).join(', ');
+      const placeholders = Object.keys(activity).map((_, i) => `$${i + 1}`).join(', ');
+      const values = Object.values(activity);
+
+      const { data, error } = await query(
+        `INSERT INTO activities (${columns}) VALUES (${placeholders}) RETURNING *`,
+        values
+      );
       
       if (error) {
         console.error('Error creating activity:', error);
         throw error;
       }
-      return data[0];
+      return data?.[0];
     } catch (error) {
       console.error('Unexpected error in createActivity:', error);
       throw error;
@@ -95,42 +86,39 @@ const activitiesService = {
   updateActivity: async (id, activityData) => {
     try {
       // First check if the activity exists
-      const { data: existingActivity } = await supabase
-        .from('activities')
-        .select('id')
-        .eq('id', id)
-        .single();
+      const { data: existingActivity } = await query(
+        'SELECT id FROM activities WHERE id = $1',
+        [id]
+      );
       
-      if (!existingActivity) return null;
+      if (!existingActivity || existingActivity.length === 0) return null;
       
-      // Only update fields that are provided
-      const updates = {};
-      
-      if (activityData.title !== undefined) updates.title = activityData.title;
-      if (activityData.description !== undefined) updates.description = activityData.description;
-      if (activityData.target_words !== undefined) updates.target_words = activityData.target_words;
-      if (activityData.target_sentences !== undefined) updates.target_sentences = activityData.target_sentences;
-      if (activityData.categories !== undefined) updates.categories = activityData.categories;
-      if (activityData.materials !== undefined) updates.materials = activityData.materials;
-      if (activityData.video_url !== undefined) updates.video_url = activityData.video_url;
-      if (activityData.image_url !== undefined) updates.image_url = activityData.image_url;
-      if (activityData.status !== undefined) updates.status = activityData.status;
-      if (activityData.color !== undefined) updates.color = activityData.color;
+      // Process arrays and objects for PostgreSQL
+      const updates = { ...activityData };
+      if (updates.target_words !== undefined) updates.target_words = JSON.stringify(updates.target_words);
+      if (updates.target_sentences !== undefined) updates.target_sentences = JSON.stringify(updates.target_sentences);
+      if (updates.categories !== undefined) updates.categories = JSON.stringify(updates.categories);
+      if (updates.materials !== undefined) updates.materials = JSON.stringify(updates.materials);
       
       // Add updated_at timestamp
       updates.updated_at = new Date().toISOString();
       
-      const { data, error } = await supabase
-        .from('activities')
-        .update(updates)
-        .eq('id', id)
-        .select();
+      // Build the SET clause and params
+      const setEntries = Object.entries(updates)
+        .map(([key, _], i) => `${key} = $${i + 1}`)
+        .join(', ');
+      const params = [...Object.values(updates), id];
+      
+      const { data, error } = await query(
+        `UPDATE activities SET ${setEntries} WHERE id = $${params.length} RETURNING *`,
+        params
+      );
       
       if (error) {
         console.error('Error updating activity:', error);
         throw error;
       }
-      return data[0];
+      return data?.[0];
     } catch (error) {
       console.error('Unexpected error in updateActivity:', error);
       throw error;
@@ -143,18 +131,17 @@ const activitiesService = {
   deleteActivity: async (id) => {
     try {
       // First check if the activity exists
-      const { data: existingActivity } = await supabase
-        .from('activities')
-        .select('id')
-        .eq('id', id)
-        .single();
+      const { data: existingActivity } = await query(
+        'SELECT id FROM activities WHERE id = $1',
+        [id]
+      );
       
-      if (!existingActivity) return false;
+      if (!existingActivity || existingActivity.length === 0) return false;
       
-      const { error } = await supabase
-        .from('activities')
-        .delete()
-        .eq('id', id);
+      const { error } = await query(
+        'DELETE FROM activities WHERE id = $1',
+        [id]
+      );
       
       if (error) {
         console.error('Error deleting activity:', error);

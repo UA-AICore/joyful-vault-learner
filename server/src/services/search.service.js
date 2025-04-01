@@ -1,5 +1,5 @@
 
-const supabase = require('../config/supabase');
+const { query } = require('../config/db');
 
 /**
  * Search service - handles database search operations
@@ -7,56 +7,80 @@ const supabase = require('../config/supabase');
 const searchService = {
   /**
    * Search activities based on filters
-   * @param {Object} filters - Object with categories, materials, target_words arrays
-   * @returns {Array} - Array of matching activities
    */
   searchActivities: async (filters) => {
     const { categories, materials, target_words } = filters;
     
-    // Start with a base query
-    let query = supabase
-      .from('activities')
-      .select('*');
-    
-    // Count the number of active filters
-    const filterCount = [categories, materials, target_words].filter(Boolean).length;
-    
-    // Apply filters based on the AND/OR logic rule:
-    // - If multiple filter types (e.g. categories AND materials): use AND between filter types
-    // - If only one filter type (e.g. only categories): use OR within that filter type
-    
-    if (filterCount > 1) {
-      // Multiple filter types: use AND logic between different filter types
-      if (categories && categories.length > 0) {
-        // Overlap - at least one category must match
-        query = query.overlaps('categories', categories);
+    try {
+      let sqlQuery = 'SELECT * FROM activities';
+      let whereClauses = [];
+      let params = [];
+      let paramIndex = 1;
+      
+      // Count the number of active filters
+      const filterCount = [categories, materials, target_words].filter(Boolean).filter(f => f.length > 0).length;
+      
+      // Apply filters
+      if (filterCount > 0) {
+        // Start WHERE clause
+        sqlQuery += ' WHERE ';
+        
+        // Add category filter if provided
+        if (categories && categories.length > 0) {
+          const categoryParams = [];
+          for (const category of categories) {
+            params.push(category);
+            categoryParams.push(`$${paramIndex++}`);
+          }
+          whereClauses.push(`categories && ARRAY[${categoryParams.join(', ')}]::text[]`);
+        }
+        
+        // Add materials filter if provided
+        if (materials && materials.length > 0) {
+          const materialParams = [];
+          for (const material of materials) {
+            params.push(material);
+            materialParams.push(`$${paramIndex++}`);
+          }
+          whereClauses.push(`materials && ARRAY[${materialParams.join(', ')}]::text[]`);
+        }
+        
+        // Add target words filter if provided
+        if (target_words && target_words.length > 0) {
+          const wordParams = [];
+          for (const word of target_words) {
+            params.push(word);
+            wordParams.push(`$${paramIndex++}`);
+          }
+          whereClauses.push(`target_words && ARRAY[${wordParams.join(', ')}]::text[]`);
+        }
+        
+        // Join WHERE clauses based on filter count
+        if (filterCount > 1) {
+          // Multiple filter types: use AND logic
+          sqlQuery += whereClauses.join(' AND ');
+        } else {
+          // Single filter type: use OR logic within that filter
+          sqlQuery += whereClauses.join(' OR ');
+        }
       }
       
-      if (materials && materials.length > 0) {
-        // Overlap - at least one material must match
-        query = query.overlaps('materials', materials);
+      // Add order by
+      sqlQuery += ' ORDER BY created_at DESC';
+      
+      // Execute query
+      const { data, error } = await query(sqlQuery, params);
+      
+      if (error) {
+        console.error('Error in search query:', error);
+        throw error;
       }
       
-      if (target_words && target_words.length > 0) {
-        // Overlap - at least one target word must match
-        query = query.overlaps('target_words', target_words);
-      }
-    } else {
-      // Single filter type: use OR logic within that filter type
-      if (categories && categories.length > 0) {
-        query = query.overlaps('categories', categories);
-      } else if (materials && materials.length > 0) {
-        query = query.overlaps('materials', materials);
-      } else if (target_words && target_words.length > 0) {
-        query = query.overlaps('target_words', target_words);
-      }
+      return data;
+    } catch (error) {
+      console.error('Unexpected error in searchActivities:', error);
+      throw error;
     }
-    
-    // Execute the query
-    const { data, error } = await query.order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data;
   }
 };
 
