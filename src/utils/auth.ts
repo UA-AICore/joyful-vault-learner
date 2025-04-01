@@ -1,6 +1,6 @@
 
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
+import bcryptjs from 'bcryptjs';
 import { query } from '../config/db';
 
 const JWT_SECRET = import.meta.env.VITE_JWT_SECRET || 'your-secret-key';
@@ -8,12 +8,12 @@ const SALT_ROUNDS = 10;
 
 // Hash password
 export const hashPassword = async (password: string): Promise<string> => {
-  return await bcrypt.hash(password, SALT_ROUNDS);
+  return await bcryptjs.hash(password, SALT_ROUNDS);
 };
 
 // Verify password
 export const verifyPassword = async (password: string, hash: string): Promise<boolean> => {
-  return await bcrypt.compare(password, hash);
+  return await bcryptjs.compare(password, hash);
 };
 
 // Generate JWT token
